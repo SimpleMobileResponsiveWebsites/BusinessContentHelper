@@ -1,5 +1,3 @@
-rge.py
-python
 import streamlit as st
 import pandas as pd
 import random
