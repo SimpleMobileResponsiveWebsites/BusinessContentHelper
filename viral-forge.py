@@ -14,27 +14,20 @@ st.set_page_config(
 # ==================== FIXED MODERN CSS ====================
 st.markdown("""
 <style>
-    /* Base app */
     .stApp {
         background-color: #f8fafc;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         color: #0f172a;
     }
-
-    /* Sidebar - keep light text on dark */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     }
     [data-testid="stSidebar"] * {
         color: #e2e8f0 !important;
     }
-
-    /* Main content text */
     .main h1, .main h2, .main h3, .main p, .main li, .main span {
         color: #0f172a !important;
     }
-
-    /* Metrics - force readable labels + values */
     [data-testid="stMetric"] {
         background: #ffffff;
         padding: 1rem 1.2rem;
@@ -54,8 +47,6 @@ st.markdown("""
     [data-testid="stMetricDelta"] {
         font-weight: 600;
     }
-
-    /* Buttons */
     .stButton>button {
         border-radius: 10px;
         font-weight: 600;
@@ -70,8 +61,6 @@ st.markdown("""
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(99,102,241,0.3);
     }
-
-    /* Inputs */
     .stTextInput>div>div>input,
     .stTextArea>div>div>textarea {
         border-radius: 10px;
@@ -79,13 +68,9 @@ st.markdown("""
         color: #0f172a !important;
         background: white;
     }
-
-    /* Info / success boxes */
     .stInfo, .stSuccess, .stWarning {
         border-radius: 12px;
     }
-
-    /* Dataframe */
     .stDataFrame {
         border-radius: 10px;
         overflow: hidden;
@@ -114,8 +99,10 @@ if "engagement_rate" not in st.session_state:
     st.session_state.engagement_rate = 4.8
 if "gemini_api_key" not in st.session_state:
     st.session_state.gemini_api_key = ""
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "gemini-3.8-flash"
 
-# Gemini Key
+# Gemini Key + Model Selector
 st.sidebar.markdown("### 🔑 Gemini API")
 api_key_input = st.sidebar.text_input(
     "API Key",
@@ -134,6 +121,24 @@ if api_key_input:
         st.sidebar.error("Invalid key")
 else:
     st.sidebar.warning("Add key for AI ideas")
+
+# Model selector
+st.sidebar.markdown("### 🤖 Model")
+model_options = {
+    "gemini-3.8-flash": "Gemini 3.8 Flash (Recommended)",
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-3.6-flash": "Gemini 3.6 Flash",
+    "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite (Fastest)",
+    "gemini-flash-latest": "Gemini Flash Latest",
+    "gemini-4-argon": "Gemini 4 Argon (Premium)"
+}
+selected_label = st.sidebar.selectbox(
+    "Choose model",
+    options=list(model_options.values()),
+    index=0
+)
+# Map label back to model ID
+st.session_state.selected_model = [k for k, v in model_options.items() if v == selected_label][0]
 
 # ==================== DASHBOARD ====================
 if page == "Dashboard":
@@ -158,7 +163,7 @@ if page == "Dashboard":
 # ==================== CONTENT IDEA GENERATOR ====================
 elif page == "Content Idea Generator":
     st.title("Content Idea Generator")
-    st.caption("Powered by Gemini")
+    st.caption(f"Powered by Gemini · Using **{st.session_state.selected_model}**")
 
     if not st.session_state.gemini_api_key:
         st.warning("Add your Gemini API key in the sidebar to generate ideas.")
@@ -173,9 +178,9 @@ elif page == "Content Idea Generator":
         num_ideas = st.slider("Number of ideas", 3, 10, 5)
 
     if st.button("Generate Ideas", type="primary") and niche:
-        with st.spinner("Forging ideas..."):
+        with st.spinner(f"Forging ideas with {st.session_state.selected_model}..."):
             try:
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel(st.session_state.selected_model)
                 prompt = f"""
                 Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
                 Style: {style}.
@@ -206,7 +211,7 @@ elif page == "Content Idea Generator":
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-                st.info("Check your API key or try again later (free tier limits apply).")
+                st.info("Try a different model from the sidebar, or check your API key / free tier limits.")
 
 # ==================== POST PLANNER ====================
 elif page == "Post Planner":
@@ -315,3 +320,4 @@ elif page == "Growth Playbook":
 
 st.sidebar.markdown("---")
 st.sidebar.caption("ViralForge · Build once. Scale forever.")
+What changed
