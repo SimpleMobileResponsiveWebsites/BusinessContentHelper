@@ -1,3 +1,5 @@
+rge.py
+python
 import streamlit as st
 import pandas as pd
 import random
@@ -11,81 +13,84 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==================== MODERN CUSTOM CSS ====================
+# ==================== FIXED MODERN CSS ====================
 st.markdown("""
 <style>
-    /* Main background & font */
+    /* Base app */
     .stApp {
         background-color: #f8fafc;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #0f172a;
     }
-    
-    /* Sidebar */
+
+    /* Sidebar - keep light text on dark */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-        color: white;
     }
     [data-testid="stSidebar"] * {
         color: #e2e8f0 !important;
     }
-    [data-testid="stSidebar"] .stRadio label {
-        color: #e2e8f0 !important;
+
+    /* Main content text */
+    .main h1, .main h2, .main h3, .main p, .main li, .main span {
+        color: #0f172a !important;
     }
-    
-    /* Headers */
-    h1, h2, h3 {
-        color: #0f172a;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-    
-    /* Cards / containers */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    
-    /* Metrics */
+
+    /* Metrics - force readable labels + values */
     [data-testid="stMetric"] {
-        background: white;
+        background: #ffffff;
         padding: 1rem 1.2rem;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         border: 1px solid #e2e8f0;
     }
-    
+    [data-testid="stMetricLabel"] {
+        color: #475569 !important;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+    [data-testid="stMetricValue"] {
+        color: #0f172a !important;
+        font-weight: 700;
+    }
+    [data-testid="stMetricDelta"] {
+        font-weight: 600;
+    }
+
     /* Buttons */
     .stButton>button {
         border-radius: 10px;
         font-weight: 600;
         padding: 0.5rem 1.2rem;
         border: none;
-        transition: all 0.2s ease;
     }
     .stButton>button[kind="primary"] {
         background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        color: white;
+        color: white !important;
     }
     .stButton>button[kind="primary"]:hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(99,102,241,0.3);
     }
-    
+
     /* Inputs */
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div {
+    .stTextInput>div>div>input,
+    .stTextArea>div>div>textarea {
         border-radius: 10px;
         border: 1px solid #e2e8f0;
+        color: #0f172a !important;
+        background: white;
     }
-    
-    /* Expanders & dataframes */
-    .streamlit-expanderHeader {
-        background: #f1f5f9;
-        border-radius: 10px;
-    }
-    
-    /* Success / info boxes */
-    .stSuccess, .stInfo, .stWarning {
+
+    /* Info / success boxes */
+    .stInfo, .stSuccess, .stWarning {
         border-radius: 12px;
+    }
+
+    /* Dataframe */
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
