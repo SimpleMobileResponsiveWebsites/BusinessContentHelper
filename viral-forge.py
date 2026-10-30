@@ -320,4 +320,3 @@ elif page == "Growth Playbook":
 
 st.sidebar.markdown("---")
 st.sidebar.caption("ViralForge · Build once. Scale forever.")
-What changed
