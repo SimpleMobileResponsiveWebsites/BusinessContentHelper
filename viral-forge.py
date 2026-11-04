@@ -1,5 +1,5 @@
 import streamlit as st
-from mistralai.client import Mistral
+from openai import OpenAI
 from datetime import datetime
 
 st.set_page_config(page_title="ViralForge", page_icon="⚡", layout="centered")
@@ -64,14 +64,14 @@ if "api_key" not in st.session_state:
 # ==================== SIDEBAR ====================
 with st.sidebar:
     st.markdown("### ⚡ ViralForge")
-    st.caption("Powered by Mistral")
+    st.caption("Powered by OpenRouter")
     st.divider()
 
     api_key = st.text_input(
-        "Mistral API Key",
+        "OpenRouter API Key",
         type="password",
         value=st.session_state.api_key,
-        placeholder="Paste your Mistral API key"
+        placeholder="Paste your OpenRouter key"
     )
     if api_key:
         st.session_state.api_key = api_key
@@ -80,11 +80,12 @@ with st.sidebar:
     model = st.selectbox(
         "Model",
         [
-            "mistral-large-latest",
-            "mistral-small-latest",
-            "mistral-medium-latest",
-            "mistral-large-4",
-            "mistral-small-2603"
+            "nvidia/nemotron-3-ultra",
+            "nvidia/nemotron-3.5-super-vl",
+            "nvidia/nemotron-3.5-lightning",
+            "mistralai/mistral-large-latest",
+            "mistralai/mistral-small-latest",
+            "mistralai/mistral-medium-latest"
         ],
         index=0
     )
@@ -94,7 +95,7 @@ st.title("ViralForge")
 st.markdown("Generate content ideas, save them, and copy to clipboard.")
 
 if not st.session_state.api_key:
-    st.info("Add your Mistral API key in the sidebar to get started.")
+    st.info("Add your OpenRouter API key in the sidebar to get started.")
     st.stop()
 
 # Inputs
@@ -110,7 +111,10 @@ num_ideas = st.slider("Number of ideas", 3, 10, 5)
 if st.button("Generate Ideas", type="primary", use_container_width=True) and niche:
     with st.spinner("Generating ideas..."):
         try:
-            client = Mistral(api_key=st.session_state.api_key)
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=st.session_state.api_key,
+            )
             prompt = f"""
             Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
             Style: {style}.
@@ -122,7 +126,7 @@ if st.button("Generate Ideas", type="primary", use_container_width=True) and nic
             Format as a clean numbered list only.
             """
 
-            response = client.chat.complete(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -140,7 +144,6 @@ if st.button("Generate Ideas", type="primary", use_container_width=True) and nic
                     "date": datetime.now().strftime("%Y-%m-%d")
                 })
 
-            # Save to session
             st.session_state.saved_ideas.extend(new_ideas)
             st.success(f"Added {len(new_ideas)} ideas")
 
@@ -160,12 +163,10 @@ if st.session_state.saved_ideas:
             </div>
             """, unsafe_allow_html=True)
             
-            # Copy button
             if st.button("Copy", key=f"copy_{i}"):
                 st.code(idea['idea'], language=None)
                 st.toast("Select and copy the text above")
 
-    # Clear all button
     if st.button("Clear all ideas", type="secondary"):
         st.session_state.saved_ideas = []
         st.rerun()
