@@ -114,6 +114,10 @@ if st.button("Generate Ideas", type="primary", use_container_width=True) and nic
             client = OpenAI(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=st.session_state.api_key,
+                default_headers={
+                    "HTTP-Referer": "https://viralforge.streamlit.app",
+                    "X-Title": "ViralForge"
+                }
             )
             prompt = f"""
             Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
