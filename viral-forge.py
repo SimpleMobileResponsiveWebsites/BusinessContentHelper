@@ -1,322 +1,204 @@
 import streamlit as st
 import pandas as pd
-import random
-from datetime import datetime, timedelta
 import google.generativeai as genai
+from datetime import datetime
+from fpdf import FPDF
+import io
 
-st.set_page_config(
-    page_title="ViralForge",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="ViralForge", page_icon="⚡", layout="centered")
 
-# ==================== FIXED MODERN CSS ====================
+# ==================== CLEAN MODERN CSS ====================
 st.markdown("""
 <style>
     .stApp {
         background-color: #f8fafc;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 800px;
+    }
+    h1 {
         color: #0f172a;
-    }
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-    }
-    [data-testid="stSidebar"] * {
-        color: #e2e8f0 !important;
-    }
-    .main h1, .main h2, .main h3, .main p, .main li, .main span {
-        color: #0f172a !important;
-    }
-    [data-testid="stMetric"] {
-        background: #ffffff;
-        padding: 1rem 1.2rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        border: 1px solid #e2e8f0;
-    }
-    [data-testid="stMetricLabel"] {
-        color: #475569 !important;
-        font-weight: 500;
-        font-size: 0.875rem;
-    }
-    [data-testid="stMetricValue"] {
-        color: #0f172a !important;
         font-weight: 700;
-    }
-    [data-testid="stMetricDelta"] {
-        font-weight: 600;
+        letter-spacing: -0.5px;
     }
     .stButton>button {
         border-radius: 10px;
         font-weight: 600;
-        padding: 0.5rem 1.2rem;
+        padding: 0.6rem 1.4rem;
         border: none;
+        transition: all 0.2s ease;
     }
     .stButton>button[kind="primary"] {
         background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        color: white !important;
+        color: white;
     }
     .stButton>button[kind="primary"]:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+        box-shadow: 0 4px 14px rgba(99,102,241,0.35);
     }
     .stTextInput>div>div>input,
-    .stTextArea>div>div>textarea {
+    .stTextArea>div>div>textarea,
+    .stSelectbox>div>div>select {
         border-radius: 10px;
         border: 1px solid #e2e8f0;
-        color: #0f172a !important;
+    }
+    .result-card {
         background: white;
+        padding: 1.2rem 1.4rem;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        margin-bottom: 1rem;
     }
-    .stInfo, .stSuccess, .stWarning {
-        border-radius: 12px;
-    }
-    .stDataFrame {
-        border-radius: 10px;
-        overflow: hidden;
+    .sidebar .stMarkdown h3 {
+        color: #0f172a;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
-st.sidebar.markdown("# ⚡ ViralForge")
-st.sidebar.caption("Forge your viral page")
-st.sidebar.markdown("---")
-
-page = st.sidebar.radio(
-    "Navigate",
-    ["Dashboard", "Content Idea Generator", "Post Planner", "Analytics Tracker", 
-     "Brand Deal Pitch", "Growth Playbook"],
-    label_visibility="collapsed"
-)
-
 # Session state
-if "posts" not in st.session_state:
-    st.session_state.posts = []
-if "followers" not in st.session_state:
-    st.session_state.followers = 1200
-if "engagement_rate" not in st.session_state:
-    st.session_state.engagement_rate = 4.8
-if "gemini_api_key" not in st.session_state:
-    st.session_state.gemini_api_key = ""
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "gemini-3.8-flash"
+if "ideas" not in st.session_state:
+    st.session_state.ideas = []
+if "api_key" not in st.session_state:
+    st.session_state.api_key = ""
 
-# Gemini Key + Model Selector
-st.sidebar.markdown("### 🔑 Gemini API")
-api_key_input = st.sidebar.text_input(
-    "API Key",
-    type="password",
-    value=st.session_state.gemini_api_key,
-    placeholder="Paste your Gemini key",
-    help="Get free key → aistudio.google.com/app/apikey"
-)
+# ==================== SIDEBAR ====================
+with st.sidebar:
+    st.markdown("### ⚡ ViralForge")
+    st.caption("Simple idea generator")
+    st.markdown("---")
 
-if api_key_input:
-    st.session_state.gemini_api_key = api_key_input
-    try:
-        genai.configure(api_key=st.session_state.gemini_api_key)
-        st.sidebar.success("Connected")
-    except Exception:
-        st.sidebar.error("Invalid key")
+    api_key = st.text_input(
+        "Gemini API Key",
+        type="password",
+        value=st.session_state.api_key,
+        placeholder="Paste your API key"
+    )
+    if api_key:
+        st.session_state.api_key = api_key
+        try:
+            genai.configure(api_key=api_key)
+            st.success("Connected")
+        except:
+            st.error("Invalid key")
+
+    model = st.selectbox(
+        "Model",
+        ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-4-argon"],
+        index=0
+    )
+
+# ==================== MAIN ====================
+st.title("ViralForge")
+st.markdown("Generate scroll-stopping content ideas, then download them.")
+
+if not st.session_state.api_key:
+    st.info("Add your Gemini API key in the sidebar to get started.")
+    st.stop()
+
+# Inputs
+col1, col2 = st.columns(2)
+with col1:
+    niche = st.text_input("Niche", placeholder="e.g. Personal finance for Gen Z")
+    platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"])
+with col2:
+    style = st.selectbox("Style", ["Educational", "Entertaining", "Storytelling", "Hot Take", "Behind-the-Scenes"])
+    num_ideas = st.slider("Number of ideas", 3, 10, 5)
+
+# Generate button
+if st.button("Generate Ideas", type="primary", use_container_width=True) and niche:
+    with st.spinner("Generating ideas..."):
+        try:
+            model_obj = genai.GenerativeModel(model)
+            prompt = f"""
+            Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
+            Style: {style}.
+            
+            Each idea must have a strong hook in the first 1-3 seconds.
+            Make them specific, emotional or valuable, and optimized for {platform}.
+            Keep each idea to 1-2 short sentences.
+            
+            Format as a clean numbered list only.
+            """
+            response = model_obj.generate_content(prompt)
+            ideas_text = response.text.strip()
+
+            # Parse ideas
+            lines = [line.strip() for line in ideas_text.split("\n") if line.strip() and any(c.isdigit() for c in line[:3])]
+            new_ideas = []
+            for line in lines[:num_ideas]:
+                clean = line.split(".", 1)[-1].strip() if "." in line else line
+                new_ideas.append({
+                    "idea": clean,
+                    "platform": platform,
+                    "niche": niche,
+                    "style": style,
+                    "date": datetime.now().strftime("%Y-%m-%d")
+                })
+
+            st.session_state.ideas = new_ideas
+            st.success("Ideas ready")
+
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+
+# Display results
+if st.session_state.ideas:
+    st.markdown("### Generated Ideas")
+    for i, idea in enumerate(st.session_state.ideas, 1):
+        with st.container():
+            st.markdown(f"""
+            <div class="result-card">
+                <strong>{i}.</strong> {idea['idea']}
+                <br><small style="color:#64748b;">{idea['platform']} · {idea['style']}</small>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### Download")
+
+    # CSV
+    df = pd.DataFrame(st.session_state.ideas)
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name="viralforge_ideas.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+
+    # PDF
+    def create_pdf(ideas):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 10, "ViralForge Content Ideas", ln=True, align="C")
+        pdf.ln(5)
+        pdf.set_font("Helvetica", size=11)
+        pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+        pdf.ln(8)
+
+        for i, idea in enumerate(ideas, 1):
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.multi_cell(0, 8, f"{i}. {idea['idea']}")
+            pdf.set_font("Helvetica", size=10)
+            pdf.cell(0, 6, f"Platform: {idea['platform']}  |  Style: {idea['style']}", ln=True)
+            pdf.ln(4)
+
+        return bytes(pdf.output())
+
+    pdf_bytes = create_pdf(st.session_state.ideas)
+    st.download_button(
+        label="Download PDF",
+        data=pdf_bytes,
+        file_name="viralforge_ideas.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+
 else:
-    st.sidebar.warning("Add key for AI ideas")
-
-# Model selector
-st.sidebar.markdown("### 🤖 Model")
-model_options = {
-    "gemini-3.8-flash": "Gemini 3.8 Flash (Recommended)",
-    "gemini-2.5-flash": "Gemini 2.5 Flash",
-    "gemini-3.6-flash": "Gemini 3.6 Flash",
-    "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite (Fastest)",
-    "gemini-flash-latest": "Gemini Flash Latest",
-    "gemini-4-argon": "Gemini 4 Argon (Premium)"
-}
-selected_label = st.sidebar.selectbox(
-    "Choose model",
-    options=list(model_options.values()),
-    index=0
-)
-# Map label back to model ID
-st.session_state.selected_model = [k for k, v in model_options.items() if v == selected_label][0]
-
-# ==================== DASHBOARD ====================
-if page == "Dashboard":
-    st.title("ViralForge")
-    st.markdown("### Build a viral page. Secure brand deals & ad revenue.")
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Followers", f"{st.session_state.followers:,}", "+127")
-    col2.metric("Engagement", f"{st.session_state.engagement_rate}%", "+0.3%")
-    col3.metric("Est. Monthly", "$1,840", "+$320")
-    col4.metric("Active Deals", "3", "+1")
-
-    st.markdown("### Growth Trend")
-    dates = pd.date_range(end=datetime.today(), periods=30)
-    growth = [st.session_state.followers - random.randint(10, 80) * (30-i) for i in range(30)]
-    df = pd.DataFrame({"Date": dates, "Followers": growth})
-    st.line_chart(df.set_index("Date"), height=320)
-
-    st.markdown("### Today’s Focus")
-    st.info("Post 1 high-hook video · Reply to comments in the first hour · Pitch 1 micro-brand")
-
-# ==================== CONTENT IDEA GENERATOR ====================
-elif page == "Content Idea Generator":
-    st.title("Content Idea Generator")
-    st.caption(f"Powered by Gemini · Using **{st.session_state.selected_model}**")
-
-    if not st.session_state.gemini_api_key:
-        st.warning("Add your Gemini API key in the sidebar to generate ideas.")
-        st.stop()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        niche = st.text_input("Niche", placeholder="e.g. Personal finance for Gen Z")
-        platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"])
-    with col2:
-        style = st.selectbox("Style", ["Educational", "Entertaining", "Storytelling", "Hot Take", "Behind-the-Scenes"])
-        num_ideas = st.slider("Number of ideas", 3, 10, 5)
-
-    if st.button("Generate Ideas", type="primary") and niche:
-        with st.spinner(f"Forging ideas with {st.session_state.selected_model}..."):
-            try:
-                model = genai.GenerativeModel(st.session_state.selected_model)
-                prompt = f"""
-                Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
-                Style: {style}.
-                
-                Each idea must have a strong hook in the first 1-3 seconds.
-                Make them specific, emotional or valuable, and optimized for {platform}.
-                Keep each idea to 1-2 short sentences.
-                
-                Format as a clean numbered list only.
-                """
-                response = model.generate_content(prompt)
-                ideas_text = response.text.strip()
-
-                st.success("Ideas ready")
-                st.markdown(ideas_text)
-
-                lines = [line.strip() for line in ideas_text.split("\n") if line.strip() and any(c.isdigit() for c in line[:3])]
-                for i, line in enumerate(lines[:num_ideas]):
-                    idea_clean = line.split(".", 1)[-1].strip() if "." in line else line
-                    if st.button(f"Save Idea {i+1}", key=f"save_{i}"):
-                        st.session_state.posts.append({
-                            "idea": idea_clean,
-                            "platform": platform,
-                            "status": "Idea",
-                            "date": datetime.now().strftime("%Y-%m-%d")
-                        })
-                        st.success(f"Saved idea {i+1}")
-
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-                st.info("Try a different model from the sidebar, or check your API key / free tier limits.")
-
-# ==================== POST PLANNER ====================
-elif page == "Post Planner":
-    st.title("Post Planner")
-
-    with st.form("new_post"):
-        st.subheader("Add Post")
-        idea = st.text_area("Idea / Caption")
-        platform = st.selectbox("Platform", ["TikTok", "Instagram", "YouTube", "LinkedIn"])
-        scheduled = st.date_input("Date", value=datetime.today() + timedelta(days=1))
-        status = st.selectbox("Status", ["Idea", "Scripted", "Filmed", "Posted", "Performing"])
-        if st.form_submit_button("Add to Pipeline", type="primary") and idea:
-            st.session_state.posts.append({
-                "idea": idea,
-                "platform": platform,
-                "status": status,
-                "date": scheduled.strftime("%Y-%m-%d")
-            })
-            st.success("Added")
-
-    if st.session_state.posts:
-        st.subheader("Pipeline")
-        df = pd.DataFrame(st.session_state.posts)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No posts yet. Generate ideas or add one above.")
-
-# ==================== ANALYTICS ====================
-elif page == "Analytics Tracker":
-    st.title("Analytics Tracker")
-
-    st.subheader("Update Metrics")
-    c1, c2 = st.columns(2)
-    with c1:
-        new_followers = st.number_input("Followers", value=st.session_state.followers, step=100)
-    with c2:
-        new_er = st.number_input("Engagement Rate %", value=st.session_state.engagement_rate, step=0.1, format="%.1f")
-
-    if st.button("Save Metrics", type="primary"):
-        st.session_state.followers = new_followers
-        st.session_state.engagement_rate = new_er
-        st.success("Updated")
-        st.rerun()
-
-    score = min(100, (st.session_state.followers / 100) + (st.session_state.engagement_rate * 8))
-    st.markdown("### Brand Deal Readiness")
-    st.progress(score / 100)
-    st.write(f"**{score:.0f}/100**")
-
-    if score < 40:
-        st.warning("Focus on consistency and engagement first.")
-    elif score < 70:
-        st.info("Start building a simple media kit and pitch micro-brands.")
-    else:
-        st.success("You’re in brand-deal range. Start pitching.")
-
-# ==================== BRAND PITCH ====================
-elif page == "Brand Deal Pitch":
-    st.title("Brand Deal Pitch")
-
-    brand = st.text_input("Brand Name")
-    your_niche = st.text_input("Your Niche")
-    followers = st.number_input("Followers", value=st.session_state.followers)
-    engagement = st.number_input("Engagement %", value=st.session_state.engagement_rate)
-
-    if st.button("Generate Pitch", type="primary") and brand:
-        pitch = f"""Subject: Collaboration Idea — {brand} x ViralForge Creator
-
-Hi {brand} team,
-
-I run a focused page in the {your_niche} space with {followers:,} engaged followers and a {engagement}% engagement rate.
-
-I’d love to explore a simple collaboration that delivers real value to both audiences.
-
-Open to a quick chat this week?
-
-Best,
-[Your Name]
-[Your Handle]
-"""
-        st.text_area("Pitch", pitch, height=280)
-        st.download_button("Download", pitch, file_name=f"pitch_{brand}.txt")
-
-# ==================== GROWTH PLAYBOOK ====================
-elif page == "Growth Playbook":
-    st.title("Growth Playbook")
-
-    st.markdown("""
-    **Core rules that actually move the needle**
-
-    1. Hook in the first 1–3 seconds  
-    2. Post consistently (5–7x per week)  
-    3. Reply to comments in the first hour  
-    4. Mix trending audio with your unique angle  
-    5. Publicly document results (screenshots of growth or revenue)  
-    6. Build a one-page media kit early  
-    7. Pitch micro-brands first, then use those wins
-    """)
-
-    st.subheader("Simple Weekly Rhythm")
-    schedule = pd.DataFrame({
-        "Day": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        "Focus": ["Educational", "Story", "Trend", "Tips", "Behind-the-scenes", "Results", "Engagement"]
-    })
-    st.table(schedule)
-
-st.sidebar.markdown("---")
-st.sidebar.caption("ViralForge · Build once. Scale forever.")
+    st.info("Enter a niche and click **Generate Ideas** to begin.")
