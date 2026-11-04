@@ -84,7 +84,7 @@ with st.sidebar:
             "mistral-small-latest",
             "mistral-medium-latest",
             "mistral-large-4",
-            "mistral-small-4"
+            "mistral-small-2603"
         ],
         index=0
     )
@@ -162,9 +162,8 @@ if st.session_state.saved_ideas:
             
             # Copy button
             if st.button("Copy", key=f"copy_{i}"):
-                st.write(idea['idea'])  # Fallback display
                 st.code(idea['idea'], language=None)
-                st.toast("Idea ready to copy (select and copy the text above)")
+                st.toast("Select and copy the text above")
 
     # Clear all button
     if st.button("Clear all ideas", type="secondary"):
