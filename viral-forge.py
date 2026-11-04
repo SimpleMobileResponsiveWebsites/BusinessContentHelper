@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+from mistralai.client import Mistral
 from datetime import datetime
 from fpdf import FPDF
 
@@ -70,35 +70,39 @@ if "api_key" not in st.session_state:
 # ==================== SIDEBAR ====================
 with st.sidebar:
     st.markdown("### ⚡ ViralForge")
-    st.caption("Simple idea generator")
+    st.caption("Powered by Mistral")
     st.divider()
 
     api_key = st.text_input(
-        "Gemini API Key",
+        "Mistral API Key",
         type="password",
         value=st.session_state.api_key,
-        placeholder="Paste your API key"
+        placeholder="Paste your Mistral API key"
     )
     if api_key:
         st.session_state.api_key = api_key
-        try:
-            genai.configure(api_key=api_key)
-            st.success("Connected")
-        except Exception:
-            st.error("Invalid key")
+        st.success("Key saved")
 
     model = st.selectbox(
         "Model",
-        ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-4-argon"],
+        [
+            "mistral-large-latest",
+            "mistral-small-latest",
+            "mistral-medium-latest",
+            "mistral-large-4",
+            "mistral-small-4",
+            "ministral-3-14b",
+            "ministral-3-8b"
+        ],
         index=0
     )
 
 # ==================== MAIN ====================
 st.title("ViralForge")
-st.markdown("Generate scroll-stopping content ideas, then download them as CSV or PDF.")
+st.markdown("Generate scroll-stopping content ideas with Mistral, then download them as CSV or PDF.")
 
 if not st.session_state.api_key:
-    st.info("Add your Gemini API key in the sidebar to get started.")
+    st.info("Add your Mistral API key in the sidebar to get started.")
     st.stop()
 
 col1, col2 = st.columns(2)
@@ -110,9 +114,9 @@ with col2:
     num_ideas = st.slider("Number of ideas", 3, 10, 5)
 
 if st.button("Generate Ideas", type="primary", use_container_width=True) and niche:
-    with st.spinner("Generating ideas..."):
+    with st.spinner("Generating ideas with Mistral..."):
         try:
-            model_obj = genai.GenerativeModel(model)
+            client = Mistral(api_key=st.session_state.api_key)
             prompt = f"""
             Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
             Style: {style}.
@@ -123,8 +127,12 @@ if st.button("Generate Ideas", type="primary", use_container_width=True) and nic
             
             Format as a clean numbered list only.
             """
-            response = model_obj.generate_content(prompt)
-            ideas_text = response.text.strip()
+
+            response = client.chat.complete(
+                model=model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ideas_text = response.choices[0].message.content.strip()
 
             lines = [line.strip() for line in ideas_text.split("\n") if line.strip() and any(c.isdigit() for c in line[:3])]
             new_ideas = []
@@ -198,3 +206,25 @@ if st.session_state.ideas:
 
 else:
     st.info("Enter a niche and click **Generate Ideas** to begin.")
+Updated requirements.txt
+txt
+streamlit>=1.40.0
+pandas>=2.2.0
+mistralai>=1.0.0
+fpdf2>=2.8.0
+What changed
+Switched from Google Gemini to Mistral
+Uses the official mistralai Python SDK
+Sidebar now asks for a Mistral API Key
+Model dropdown includes current Mistral models (mistral-large-latest, mistral-small-latest, mistral-large-4, etc.)
+Same clean UI and CSV/PDF download functionality
+Get a Mistral API key at console.mistral.ai. Replace your file with the code above, update requirements.txt, push, and reboot the Streamlit Cloud app.
+
+
+
+
+
+26 sources
+
+
+
