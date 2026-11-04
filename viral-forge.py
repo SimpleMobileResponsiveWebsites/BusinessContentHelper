@@ -1,12 +1,10 @@
 import streamlit as st
-import pandas as pd
 from mistralai.client import Mistral
 from datetime import datetime
-from fpdf import FPDF
 
 st.set_page_config(page_title="ViralForge", page_icon="⚡", layout="centered")
 
-# ==================== CLEAN, SAFE CSS ====================
+# ==================== CLEAN CSS ====================
 st.markdown("""
 <style>
     .stApp {
@@ -16,7 +14,7 @@ st.markdown("""
     .main .block-container {
         padding-top: 1.5rem;
         padding-bottom: 2rem;
-        max-width: 820px;
+        max-width: 780px;
     }
     h1, h2, h3 {
         color: #0f172a !important;
@@ -35,20 +33,16 @@ st.markdown("""
         background: linear-gradient(90deg, #6366f1, #8b5cf6);
         color: white !important;
     }
-    .stButton>button[kind="primary"]:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99,102,241,0.3);
-    }
-    .result-card {
+    .idea-card {
         background: #ffffff;
-        padding: 1.1rem 1.3rem;
+        padding: 1rem 1.2rem;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        margin-bottom: 0.9rem;
+        margin-bottom: 0.8rem;
         color: #0f172a;
     }
-    .result-card small {
+    .idea-card small {
         color: #64748b;
     }
     [data-testid="stSidebar"] {
@@ -62,8 +56,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Session state
-if "ideas" not in st.session_state:
-    st.session_state.ideas = []
+if "saved_ideas" not in st.session_state:
+    st.session_state.saved_ideas = []
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 
@@ -90,31 +84,31 @@ with st.sidebar:
             "mistral-small-latest",
             "mistral-medium-latest",
             "mistral-large-4",
-            "mistral-small-4",
-            "ministral-3-14b",
-            "ministral-3-8b"
+            "mistral-small-4"
         ],
         index=0
     )
 
 # ==================== MAIN ====================
 st.title("ViralForge")
-st.markdown("Generate scroll-stopping content ideas with Mistral, then download them as CSV or PDF.")
+st.markdown("Generate content ideas, save them, and copy to clipboard.")
 
 if not st.session_state.api_key:
     st.info("Add your Mistral API key in the sidebar to get started.")
     st.stop()
 
+# Inputs
+niche = st.text_input("Niche", placeholder="e.g. Personal finance for Gen Z")
 col1, col2 = st.columns(2)
 with col1:
-    niche = st.text_input("Niche", placeholder="e.g. Personal finance for Gen Z")
-    platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"])
-with col2:
     style = st.selectbox("Style", ["Educational", "Entertaining", "Storytelling", "Hot Take", "Behind-the-Scenes"])
-    num_ideas = st.slider("Number of ideas", 3, 10, 5)
+with col2:
+    platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"])
+
+num_ideas = st.slider("Number of ideas", 3, 10, 5)
 
 if st.button("Generate Ideas", type="primary", use_container_width=True) and niche:
-    with st.spinner("Generating ideas with Mistral..."):
+    with st.spinner("Generating ideas..."):
         try:
             client = Mistral(api_key=st.session_state.api_key)
             prompt = f"""
@@ -146,85 +140,36 @@ if st.button("Generate Ideas", type="primary", use_container_width=True) and nic
                     "date": datetime.now().strftime("%Y-%m-%d")
                 })
 
-            st.session_state.ideas = new_ideas
-            st.success("Ideas ready")
+            # Save to session
+            st.session_state.saved_ideas.extend(new_ideas)
+            st.success(f"Added {len(new_ideas)} ideas")
 
         except Exception as e:
             st.error(f"Error: {str(e)}")
 
-# Display results
-if st.session_state.ideas:
-    st.markdown("### Generated Ideas")
-    for i, idea in enumerate(st.session_state.ideas, 1):
-        st.markdown(f"""
-        <div class="result-card">
-            <strong>{i}.</strong> {idea['idea']}<br>
-            <small>{idea['platform']} · {idea['style']}</small>
-        </div>
-        """, unsafe_allow_html=True)
+# Display saved ideas
+if st.session_state.saved_ideas:
+    st.markdown("### Saved Ideas")
+    
+    for i, idea in enumerate(reversed(st.session_state.saved_ideas)):
+        with st.container():
+            st.markdown(f"""
+            <div class="idea-card">
+                <strong>{idea['idea']}</strong><br>
+                <small>{idea['platform']} · {idea['style']} · {idea['niche']}</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Copy button
+            if st.button("Copy", key=f"copy_{i}"):
+                st.write(idea['idea'])  # Fallback display
+                st.code(idea['idea'], language=None)
+                st.toast("Idea ready to copy (select and copy the text above)")
 
-    st.divider()
-    st.markdown("### Download")
-
-    df = pd.DataFrame(st.session_state.ideas)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download CSV",
-        data=csv,
-        file_name="viralforge_ideas.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
-
-    def create_pdf(ideas):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 16)
-        pdf.cell(0, 10, "ViralForge Content Ideas", ln=True, align="C")
-        pdf.ln(6)
-        pdf.set_font("Helvetica", size=11)
-        pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-        pdf.ln(8)
-
-        for i, idea in enumerate(ideas, 1):
-            pdf.set_font("Helvetica", "B", 12)
-            pdf.multi_cell(0, 8, f"{i}. {idea['idea']}")
-            pdf.set_font("Helvetica", size=10)
-            pdf.cell(0, 6, f"Platform: {idea['platform']}  |  Style: {idea['style']}", ln=True)
-            pdf.ln(5)
-
-        return bytes(pdf.output())
-
-    pdf_bytes = create_pdf(st.session_state.ideas)
-    st.download_button(
-        label="Download PDF",
-        data=pdf_bytes,
-        file_name="viralforge_ideas.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
+    # Clear all button
+    if st.button("Clear all ideas", type="secondary"):
+        st.session_state.saved_ideas = []
+        st.rerun()
 
 else:
-    st.info("Enter a niche and click **Generate Ideas** to begin.")
-Updated requirements.txt
-txt
-streamlit>=1.40.0
-pandas>=2.2.0
-mistralai>=1.0.0
-fpdf2>=2.8.0
-What changed
-Switched from Google Gemini to Mistral
-Uses the official mistralai Python SDK
-Sidebar now asks for a Mistral API Key
-Model dropdown includes current Mistral models (mistral-large-latest, mistral-small-latest, mistral-large-4, etc.)
-Same clean UI and CSV/PDF download functionality
-Get a Mistral API key at console.mistral.ai. Replace your file with the code above, update requirements.txt, push, and reboot the Streamlit Cloud app.
-
-
-
-
-
-26 sources
-
-
-
+    st.info("Generate some ideas to see them here.")
