@@ -1,179 +1,54 @@
 import streamlit as st
-from openai import OpenAI
-from datetime import datetime
+import json
+import os
 
-st.set_page_config(page_title="ViralForge", page_icon="⚡", layout="centered")
+SETTINGS_FILE = "settings.json"
 
-# ==================== CLEAN CSS ====================
-st.markdown("""
-<style>
-    .stApp {
-        background-color: #f8fafc;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-    .main .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2rem;
-        max-width: 780px;
-    }
-    h1, h2, h3 {
-        color: #0f172a !important;
-        font-weight: 700;
-    }
-    p, label, .stMarkdown, .stCaption {
-        color: #1e293b !important;
-    }
-    .stButton>button {
-        border-radius: 10px;
-        font-weight: 600;
-        padding: 0.55rem 1.3rem;
-        border: none;
-    }
-    .stButton>button[kind="primary"] {
-        background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        color: white !important;
-    }
-    .idea-card {
-        background: #ffffff;
-        padding: 1rem 1.2rem;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        margin-bottom: 0.8rem;
-        color: #0f172a;
-    }
-    .idea-card small {
-        color: #64748b;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e2e8f0;
-    }
-    [data-testid="stSidebar"] * {
-        color: #0f172a !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    return {}
 
-# Session state
-if "saved_ideas" not in st.session_state:
-    st.session_state.saved_ideas = []
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
+def save_settings(data):
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
-# ==================== SIDEBAR ====================
-with st.sidebar:
-    st.markdown("### ⚡ ViralForge")
-    st.caption("Powered by OpenRouter")
-    st.divider()
+# Load previous values
+settings = load_settings()
 
-    api_key = st.text_input(
-        "OpenRouter API Key",
-        type="password",
-        value=st.session_state.api_key,
-        placeholder="Paste your OpenRouter key"
-    )
-    if api_key:
-        st.session_state.api_key = api_key
-        st.success("Key saved")
+st.title("Content Idea Helper")
 
-    model = st.selectbox(
-        "Model",
-        [
-            "nvidia/nemotron-3-ultra",
-            "nvidia/nemotron-3.5-super-vl",
-            "nvidia/nemotron-3.5-lightning",
-            "mistralai/mistral-large-latest",
-            "mistralai/mistral-small-latest",
-            "mistralai/mistral-medium-latest"
-        ],
-        index=0
-    )
+# Niche input
+niche = st.text_input(
+    "Niche",
+    value=settings.get("niche", ""),
+    placeholder="e.g. Personal finance for Gen Z"
+)
 
-# ==================== MAIN ====================
-st.title("ViralForge")
-st.markdown("Generate content ideas, save them, and copy to clipboard.")
-
-if not st.session_state.api_key:
-    st.info("Add your OpenRouter API key in the sidebar to get started.")
-    st.stop()
-
-# Inputs
-niche = st.text_input("Niche", placeholder="e.g. Personal finance for Gen Z")
+# Style + Platform in columns
 col1, col2 = st.columns(2)
+
 with col1:
-    style = st.selectbox("Style", ["Educational", "Entertaining", "Storytelling", "Hot Take", "Behind-the-Scenes"])
+    style_options = ["Educational", "Entertaining", "Storytelling", "Hot Take", "Behind-the-Scenes"]
+    style_index = style_options.index(settings.get("style", style_options[0])) if settings.get("style") in style_options else 0
+    style = st.selectbox("Style", style_options, index=style_index)
+
 with col2:
-    platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"])
+    platform_options = ["TikTok", "Instagram Reels", "YouTube Shorts", "LinkedIn", "Twitter/X"]
+    platform_index = platform_options.index(settings.get("platform", platform_options[0])) if settings.get("platform") in platform_options else 0
+    platform = st.selectbox("Platform", platform_options, index=platform_index)
 
-num_ideas = st.slider("Number of ideas", 3, 10, 5)
+# Save button
+if st.button("Save", type="primary"):
+    data = {
+        "niche": niche,
+        "style": style,
+        "platform": platform
+    }
+    save_settings(data)
+    st.success("Saved successfully!")
 
-if st.button("Generate Ideas", type="primary", use_container_width=True) and niche:
-    with st.spinner("Generating ideas..."):
-        try:
-            client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=st.session_state.api_key,
-                default_headers={
-                    "HTTP-Referer": "https://viralforge.streamlit.app",
-                    "X-Title": "ViralForge"
-                }
-            )
-            prompt = f"""
-            Generate {num_ideas} highly scroll-stopping content ideas for {platform} in the niche: "{niche}".
-            Style: {style}.
-            
-            Each idea must have a strong hook in the first 1-3 seconds.
-            Make them specific, emotional or valuable, and optimized for {platform}.
-            Keep each idea to 1-2 short sentences.
-            
-            Format as a clean numbered list only.
-            """
-
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            ideas_text = response.choices[0].message.content.strip()
-
-            lines = [line.strip() for line in ideas_text.split("\n") if line.strip() and any(c.isdigit() for c in line[:3])]
-            new_ideas = []
-            for line in lines[:num_ideas]:
-                clean = line.split(".", 1)[-1].strip() if "." in line else line
-                new_ideas.append({
-                    "idea": clean,
-                    "platform": platform,
-                    "niche": niche,
-                    "style": style,
-                    "date": datetime.now().strftime("%Y-%m-%d")
-                })
-
-            st.session_state.saved_ideas.extend(new_ideas)
-            st.success(f"Added {len(new_ideas)} ideas")
-
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-
-# Display saved ideas
-if st.session_state.saved_ideas:
-    st.markdown("### Saved Ideas")
-    
-    for i, idea in enumerate(reversed(st.session_state.saved_ideas)):
-        with st.container():
-            st.markdown(f"""
-            <div class="idea-card">
-                <strong>{idea['idea']}</strong><br>
-                <small>{idea['platform']} · {idea['style']} · {idea['niche']}</small>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("Copy", key=f"copy_{i}"):
-                st.code(idea['idea'], language=None)
-                st.toast("Select and copy the text above")
-
-    if st.button("Clear all ideas", type="secondary"):
-        st.session_state.saved_ideas = []
-        st.rerun()
-
-else:
-    st.info("Generate some ideas to see them here.")
+# Optional: show currently saved values
+with st.expander("Currently saved settings"):
+    st.json(load_settings())
