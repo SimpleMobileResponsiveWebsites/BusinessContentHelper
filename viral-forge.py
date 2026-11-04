@@ -1,6 +1,3 @@
-Here’s a cleaner version with better styling that keeps all text readable and avoids aggressive CSS that can break Streamlit’s components:
-
-python
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
